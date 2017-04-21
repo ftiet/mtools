@@ -6,7 +6,7 @@ import mdtraj.core.element as Element
 
 
 def calc_charge_density(coord_file, trj_file, top_file, bin_width, area,
-    dim, box_range, data_path):
+    dim, box_range, data_path, geometry, sphere_center=None):
     """
     Return a 1-D charge density profile across a channel.
 
@@ -16,7 +16,11 @@ def calc_charge_density(coord_file, trj_file, top_file, bin_width, area,
 
     first_frame = md.load_frame(trj_file, top=coord_file, index=0)
 
-    a = [x.type for x in system.atoms]
+#    a = [x.type for x in system.atoms]
+#    indices = np.unique(a, return_index=True)[1]
+#    parmed_types = [a[index] for index in sorted(indices)]
+
+    a = [x.name for x in system.atoms]
     indices = np.unique(a, return_index=True)[1]
     parmed_types = [a[index] for index in sorted(indices)]
 
@@ -32,20 +36,35 @@ def calc_charge_density(coord_file, trj_file, top_file, bin_width, area,
 
         ids = first_frame.topology.select('name {}'.format(mt))
         traj = md.load(trj_file, top=coord_file,
-            atom_indices=first_frame.topology.select('name {}'.
-            format(mt)))
+            atom_indices=ids)
 
-        atom_density[mt] = traj.xyz[:, :, 2]
+        if geometry == 'planar':
+            atom_density[mt] = traj.xyz[:, :, 2]
+        
+            x = np.histogram(atom_density[mt].reshape((-1, 1)),
+                bins=np.linspace(box_range[0], box_range[1],
+                num=1+round((box_range[1]-box_range[0])/bin_width)))
 
-        x = np.histogram(atom_density[mt].reshape((-1, 1)),
-            bins=np.linspace(box_range[0], box_range[1],
-            num=1+round((box_range[1]-box_range[0])/bin_width)))
+            charge_density.append(x[0]*charge/(area*bin_width*len(traj)))
+        
+        elif geometry == 'sphere':
+            atom_density[mt] = (np.sqrt(np.sum([(val-sphere_center)**2 for val in traj.xyz], axis=2)))
 
-        charge_density.append(x[0]*charge/(area*bin_width*len(traj)))
+            x = np.histogram(atom_density[mt].reshape(-1),
+                bins=np.linspace(box_range[0], box_range[1],
+                num=1+round((box_range[1]-box_range[0])/bin_width)))
 
-    np.savetxt('{}/charge-density.txt'.format(data_path),
-        np.transpose(np.vstack([x[1][:-1]+np.mean(x[1][:2]),
-        np.sum(np.array(charge_density), axis=0)])))
+            charge_density.append([val*charge/(4*np.pi*r**2*bin_width*len(traj)) for val,r in zip(x[0], x[1][1:])])
+
+    if geometry == 'planar': 
+        np.savetxt('{}/charge-density.txt'.format(data_path),
+            np.transpose(np.vstack([x[1][:-1]+np.mean(x[1][:2]),
+            np.sum(np.array(charge_density), axis=0)])))
+
+    elif geometry == 'sphere':
+        np.savetxt('{}/charge-density.txt'.format(data_path), 
+            np.vstack([x[1][:-1]+np.mean(x[1][:2]), 
+            np.sum(np.array(charge_density), axis=0)]))
 
 def calc_number_density(coord_file, trj_file, bin_width, area, dim, box_range, data_path):
     """
