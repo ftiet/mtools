@@ -1,0 +1,7 @@
+[ moleculetype ]
+; Name nrexcl
+CL 3
+
+[ atoms ]
+;   nr      type  resnr resid  atom  cgnr   charge     mass
+     1         opls_401    1	   CL	CL     1    -1.00	35.453

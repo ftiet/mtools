@@ -1,0 +1,15 @@
+; Include forcefield parameters
+#include "ffnonbonded.itp"
+#include "carbon.itp"
+#include "na.itp"
+#include "cl.itp"
+#include "tip3p.itp"
+
+[ system ]
+water sphere 
+
+[ molecules ]
+OC 1
+NA 305 
+CL 305
+SOL 16250
